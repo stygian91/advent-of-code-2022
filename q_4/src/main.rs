@@ -18,8 +18,7 @@ impl Section {
     }
 
     pub fn overlaps(&self, other: &Section) -> bool {
-        // +1 because the upper bound is not inclusive like we need
-        let range = self.0..self.1 + 1;
+        let range = self.0..=self.1;
 
         other.contains(self) || range.contains(&other.0) || range.contains(&other.1)
     }
