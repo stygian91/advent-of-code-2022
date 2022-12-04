@@ -1,7 +1,7 @@
 use std::{fs::read_to_string, path::Path};
 
 #[derive(Debug)]
-pub struct Section(pub u32, pub u32);
+pub struct Section(u32, u32);
 
 impl Section {
     pub fn from_str(input: &str) -> Self {
@@ -18,10 +18,10 @@ impl Section {
     }
 
     pub fn overlaps(&self, other: &Section) -> bool {
-        self.contains(other)
-            || other.contains(self)
-            || (self.1 >= other.0 && self.1 <= other.1)
-            || (self.0 <= other.1 && self.0 >= other.0)
+        // +1 because the upper bound is not inclusive like we need
+        let range = self.0..self.1 + 1;
+
+        other.contains(self) || range.contains(&other.0) || range.contains(&other.1)
     }
 }
 
