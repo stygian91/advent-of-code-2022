@@ -60,7 +60,7 @@ fn parse_stacks(input: &str) -> HashMap<usize, Vec<char>> {
         }
     }
 
-    for (i, stack) in stacks.iter_mut() {
+    for (_, stack) in stacks.iter_mut() {
         stack.reverse();
     }
 
@@ -69,10 +69,7 @@ fn parse_stacks(input: &str) -> HashMap<usize, Vec<char>> {
 
 fn apply_move(stacks: &mut HashMap<usize, Vec<char>>, mv: &Move) {
     for _ in 0..mv.amount {
-        let val;
-        {
-            val = stacks.get_mut(&mv.from).unwrap().pop().unwrap();
-        }
+        let val = stacks.get_mut(&mv.from).unwrap().pop().unwrap();
         stacks.get_mut(&mv.to).unwrap().push(val);
     }
 }
@@ -96,7 +93,6 @@ fn get_tops(stacks: &HashMap<usize, Vec<char>>) -> String {
     res
 }
 
-#[allow(unused)]
 fn part1() {
     let (mut stacks, moves) = parse_file("./data/input.txt");
     for mv in moves {
@@ -116,5 +112,6 @@ fn part2() {
 }
 
 fn main() {
+    part1();
     part2();
 }
