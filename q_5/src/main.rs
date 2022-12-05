@@ -14,18 +14,19 @@ impl Move {
         lazy_static! {
             static ref RE: Regex = Regex::new(r"^move (\d+) from (\d+) to (\d+)$").unwrap();
         }
-        let captures = RE.captures(input).unwrap();
-        let amount = captures.get(1).unwrap().as_str().parse::<usize>().unwrap();
-        let from = captures.get(2).unwrap().as_str().parse::<usize>().unwrap() - 1;
-        let to = captures.get(3).unwrap().as_str().parse::<usize>().unwrap() - 1;
 
-        Self { amount, from, to }
+        let captures = RE.captures(input).unwrap();
+        let get_capture = |i| captures.get(i).unwrap().as_str().parse::<usize>().unwrap();
+
+        Self {
+            amount: get_capture(1),
+            from: get_capture(2) - 1,
+            to: get_capture(3) - 1,
+        }
     }
 }
 
-fn parse_file(path: &str) -> (Vec<Vec<char>>, Vec<Move>) {
-    let contents = read_to_string(&Path::new(path)).unwrap();
-    let parts = contents.split("\n\n").collect::<Vec<_>>();
+fn parse_file(parts: &Vec<&str>) -> (Vec<Vec<char>>, Vec<Move>) {
     let stacks = parse_stacks(parts[0]);
     let moves = parse_moves(parts[1]);
     (stacks, moves)
@@ -98,25 +99,31 @@ fn get_tops(stacks: &Vec<Vec<char>>) -> String {
     res
 }
 
-fn part1() {
-    let (mut stacks, moves) = parse_file("./data/input.txt");
+fn process_moves<F>(stacks: &mut Vec<Vec<char>>, moves: &Vec<Move>, f: F)
+where
+    F: Fn(&mut Vec<Vec<char>>, &Move) -> (),
+{
     for mv in moves {
-        apply_move(&mut stacks, &mv);
+        f(stacks, mv);
     }
 
     println!("{}", get_tops(&stacks));
 }
 
-fn part2() {
-    let (mut stacks, moves) = parse_file("./data/input.txt");
-    for mv in moves {
-        apply_move_v2(&mut stacks, &mv);
-    }
+fn part1(parts: &Vec<&str>) {
+    let (mut stacks, moves) = parse_file(parts);
+    process_moves(&mut stacks, &moves, apply_move);
+}
 
-    println!("{}", get_tops(&stacks));
+fn part2(parts: &Vec<&str>) {
+    let (mut stacks, moves) = parse_file(parts);
+    process_moves(&mut stacks, &moves, apply_move_v2);
 }
 
 fn main() {
-    part1();
-    part2();
+    let contents = read_to_string(&Path::new("./data/input.txt")).unwrap();
+    let parts = contents.split("\n\n").collect::<Vec<_>>();
+
+    part1(&parts);
+    part2(&parts);
 }
