@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{collections::HashMap, fs::read_to_string, path::Path};
+use std::{fs::read_to_string, path::Path};
 
 #[derive(Debug)]
 struct Move {
@@ -12,7 +12,6 @@ struct Move {
 impl Move {
     pub fn from_str(input: &str) -> Self {
         lazy_static! {
-            // move 5 from 8 to 2
             static ref RE: Regex = Regex::new(r"^move (\d+) from (\d+) to (\d+)$").unwrap();
         }
         let captures = RE.captures(input).unwrap();
@@ -24,7 +23,7 @@ impl Move {
     }
 }
 
-fn parse_file(path: &str) -> (HashMap<usize, Vec<char>>, Vec<Move>) {
+fn parse_file(path: &str) -> (Vec<Vec<char>>, Vec<Move>) {
     let contents = read_to_string(&Path::new(path)).unwrap();
     let parts = contents.split("\n\n").collect::<Vec<_>>();
     let stacks = parse_stacks(parts[0]);
@@ -40,8 +39,14 @@ fn parse_moves(input: &str) -> Vec<Move> {
     moves
 }
 
-fn parse_stacks(input: &str) -> HashMap<usize, Vec<char>> {
-    let mut stacks = HashMap::new();
+fn init_until(n: usize, stacks: &mut Vec<Vec<char>>) {
+    for _ in stacks.len()..=n {
+        stacks.push(Vec::new());
+    }
+}
+
+fn parse_stacks(input: &str) -> Vec<Vec<char>> {
+    let mut stacks = Vec::new();
     let mut iter = input.lines().peekable();
 
     while let Some(line) = iter.next() {
@@ -55,40 +60,41 @@ fn parse_stacks(input: &str) -> HashMap<usize, Vec<char>> {
                 continue;
             }
 
-            let stack = stacks.entry(stack_idx).or_insert(Vec::new());
-            stack.push(ch);
+            if stack_idx >= stacks.len() {
+                init_until(stack_idx, &mut stacks);
+            }
+            stacks[stack_idx].push(ch);
         }
     }
 
-    for (_, stack) in stacks.iter_mut() {
+    for stack in stacks.iter_mut() {
         stack.reverse();
     }
 
     stacks
 }
 
-fn apply_move(stacks: &mut HashMap<usize, Vec<char>>, mv: &Move) {
+fn apply_move(stacks: &mut Vec<Vec<char>>, mv: &Move) {
     for _ in 0..mv.amount {
-        let val = stacks.get_mut(&mv.from).unwrap().pop().unwrap();
-        stacks.get_mut(&mv.to).unwrap().push(val);
+        let val = stacks[mv.from].pop().unwrap();
+        stacks[mv.to].push(val);
     }
 }
 
-fn apply_move_v2(stacks: &mut HashMap<usize, Vec<char>>, mv: &Move) {
-    let val = {
-        let from = stacks.get_mut(&mv.from).unwrap();
-        from.split_off(from.len() - mv.amount)
-    };
-    stacks.get_mut(&mv.to).unwrap().extend(val);
+fn apply_move_v2(stacks: &mut Vec<Vec<char>>, mv: &Move) {
+    let len = stacks[mv.from].len();
+    let slice = stacks[mv.from].split_off(len - mv.amount);
+    stacks[mv.to].extend(slice);
 }
 
-fn get_tops(stacks: &HashMap<usize, Vec<char>>) -> String {
-    let mut res = String::new();
-    for i in 0..stacks.len() {
-        let stack = stacks.get(&i).unwrap();
+fn get_tops(stacks: &Vec<Vec<char>>) -> String {
+    let mut res = String::with_capacity(stacks.len());
+
+    for stack in stacks.iter() {
         let last = stack.last().unwrap();
         res.push(*last);
     }
+
     res
 }
 
