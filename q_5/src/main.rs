@@ -75,11 +75,10 @@ fn apply_move(stacks: &mut HashMap<usize, Vec<char>>, mv: &Move) {
 }
 
 fn apply_move_v2(stacks: &mut HashMap<usize, Vec<char>>, mv: &Move) {
-    let val;
-    {
+    let val = {
         let from = stacks.get_mut(&mv.from).unwrap();
-        val = from.split_off(from.len() - mv.amount)
-    }
+        from.split_off(from.len() - mv.amount)
+    };
     stacks.get_mut(&mv.to).unwrap().extend(val);
 }
 
