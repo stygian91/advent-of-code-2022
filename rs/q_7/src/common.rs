@@ -31,10 +31,14 @@ impl File {
         let mut res = String::new();
         writeln!(
             res,
-            "{}{} ({})",
+            "{}{} {} {}",
             sep,
             self.name,
-            if self.is_dir { "dir" } else { "file" }
+            if self.is_dir { "dir" } else { "file" },
+            match self.size {
+                Some(size) => size.to_string(),
+                None => "Unknown".to_owned(),
+            }
         );
 
         for child in self.children.iter() {
@@ -75,6 +79,9 @@ pub fn parse_ls(dir: RcFile, start_idx: usize, lines: &[&str]) -> usize {
         let file = File::new_rc(File::new(name, is_dir));
         dir.borrow_mut().add_child(file.clone());
         file.borrow_mut().set_parent(dir.clone());
+        if !is_dir {
+            file.borrow_mut().size = parts[0].parse::<usize>().ok();
+        }
     }
 
     i
@@ -113,6 +120,33 @@ pub fn parse(cwd: RcFile, idx: usize, lines: &[&str]) {
     }
 
     unreachable!("Trying to parse wrong line.");
+}
+
+pub fn update_dir_sizes(cwd: RcFile) {
+    let mut size = 0;
+
+    for child in cwd.borrow().children.iter() {
+        if child.borrow().is_dir {
+            update_dir_sizes(child.clone());
+        }
+
+        size += child.borrow().size.unwrap();
+    }
+
+    cwd.borrow_mut().size = Some(size);
+}
+
+pub fn walk<F>(cwd: RcFile, callback: &mut F)
+where
+    F: FnMut(RcFile) -> (),
+{
+    for child in cwd.borrow().children.iter() {
+        if child.borrow().is_dir {
+            walk(child.clone(), callback);
+        }
+
+        callback(child.clone());
+    }
 }
 
 #[cfg(test)]
