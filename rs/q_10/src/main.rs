@@ -22,7 +22,7 @@ impl Command {
     }
 }
 
-struct CPU {
+struct Cpu {
     tick: usize,
     x: i32,
     commands: Vec<Command>,
@@ -30,7 +30,7 @@ struct CPU {
     last_started: usize,
 }
 
-impl CPU {
+impl Cpu {
     pub fn new(commands: &[Command]) -> Self {
         Self {
             tick: 0,
@@ -47,9 +47,7 @@ impl CPU {
 
     pub fn exec(&mut self) -> Option<()> {
         let cmd = self.commands.get(self.pc);
-        if cmd.is_none() {
-            return None;
-        }
+        cmd?;
 
         let cmd = cmd.unwrap();
 
@@ -75,19 +73,15 @@ impl CPU {
     }
 }
 
-struct CRT {
+struct Crt {
     buffer: Vec<String>,
 }
 
-impl CRT {
+impl Crt {
     pub fn new() -> Self {
         Self {
             buffer: Vec::with_capacity(CRT_HEIGHT),
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.buffer.clear();
     }
 
     pub fn add_pixel(&mut self, is_lit: bool) {
@@ -136,15 +130,15 @@ impl CRT {
 }
 
 fn parse_file(path: &str) -> Vec<Command> {
-    read_to_string(&Path::new(path))
+    read_to_string(Path::new(path))
         .unwrap()
         .lines()
-        .map(|line| Command::from_str(line))
+        .map(Command::from_str)
         .collect()
 }
 
 fn part1(commands: &[Command]) -> i32 {
-    let mut cpu = CPU::new(commands);
+    let mut cpu = Cpu::new(commands);
     let mut next_signal_check = 20;
     let mut total_str = 0;
 
@@ -163,18 +157,14 @@ fn part1(commands: &[Command]) -> i32 {
 }
 
 fn part2(commands: &[Command]) -> String {
-    let mut cpu = CPU::new(commands);
-    let mut crt = CRT::new();
+    let mut cpu = Cpu::new(commands);
+    let mut crt = Crt::new();
 
     loop {
         cpu.next_tick();
 
         let draw_idx = crt.get_current_idx() as i32;
-        let is_lit = if draw_idx >= cpu.x - 1 && draw_idx <= cpu.x + 1 {
-            true
-        } else {
-            false
-        };
+        let is_lit = draw_idx >= cpu.x - 1 && draw_idx <= cpu.x + 1;
 
         if cpu.exec().is_none() {
             break;
@@ -203,7 +193,7 @@ mod tests {
     #[test]
     fn next_tick_works() {
         let commands = vec![Command::Noop, Command::Add(3), Command::Add(-5)];
-        let mut cpu = CPU::new(&commands);
+        let mut cpu = Cpu::new(&commands);
 
         cpu.next_tick();
         cpu.exec();
