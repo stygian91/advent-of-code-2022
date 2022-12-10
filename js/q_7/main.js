@@ -125,8 +125,7 @@ const part1_sum = (cwd) => {
 };
 
 const part1 = (root) => {
-  const acc = { value: 0 };
-  const sum = part1_sum(root, acc);
+  const sum = part1_sum(root);
   console.log(sum);
 };
 
