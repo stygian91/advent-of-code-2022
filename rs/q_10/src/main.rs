@@ -1,4 +1,9 @@
-use std::{fs::read_to_string, path::Path};
+use std::{fs::read_to_string, path::Path, fmt::Write};
+
+const CRT_WIDTH: usize = 40;
+const CRT_HEIGHT: usize = 6;
+const CRT_LIT: char = '#';
+const CRT_UNLIT: char = '.';
 
 #[derive(Debug, PartialEq, Clone)]
 enum Command {
@@ -40,14 +45,19 @@ impl CPU {
         self.tick += 1;
     }
 
-    pub fn exec(&mut self) {
-        let cmd = &self.commands[self.pc];
+    pub fn exec(&mut self) -> Option<()> {
+        let cmd = self.commands.get(self.pc);
+        if cmd.is_none() {
+            return None;
+        }
+
+        let cmd = cmd.unwrap();
 
         match cmd {
             Command::Noop => {
                 self.pc += 1;
                 self.last_started += 1;
-            },
+            }
             Command::Add(value) => {
                 if self.tick - self.last_started == 2 {
                     self.last_started = self.tick;
@@ -56,10 +66,72 @@ impl CPU {
                 }
             }
         };
+
+        Some(())
     }
 
     pub fn signal_str(&self) -> i32 {
         self.tick as i32 * self.x
+    }
+}
+
+struct CRT {
+    buffer: Vec<String>,
+}
+
+impl CRT {
+    pub fn new() -> Self {
+        Self {
+            buffer: Vec::with_capacity(CRT_HEIGHT),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.buffer.clear();
+    }
+
+    pub fn add_pixel(&mut self, is_lit: bool) {
+        if self.buffer.is_empty() {
+            self.new_row();
+        }
+
+        let mut last = self.buffer.last_mut().unwrap();
+        if last.len() == CRT_WIDTH {
+            self.new_row();
+            last = self.buffer.last_mut().unwrap();
+        }
+
+        match is_lit {
+            true => last.push(CRT_LIT),
+            false => last.push(CRT_UNLIT),
+        };
+    }
+
+    fn new_row(&mut self) {
+        self.buffer.push(String::with_capacity(CRT_WIDTH));
+    }
+
+    pub fn get_current_idx(&self) -> usize {
+        if self.buffer.is_empty() {
+            return 0;
+        }
+
+        let row = self.buffer.last().unwrap();
+        if row.len() == CRT_WIDTH {
+            0
+        } else {
+            row.len()
+        }
+    }
+
+    pub fn print(&self) -> String {
+        let mut res = String::new();
+
+        for line in self.buffer.iter() {
+            writeln!(res, "{}", line).unwrap();
+        }
+
+        res
     }
 }
 
@@ -84,16 +156,44 @@ fn part1(commands: &[Command]) -> i32 {
             total_str += cpu.signal_str();
         }
 
-        cpu.exec();
+        cpu.exec().unwrap();
     }
 
     total_str
 }
 
+fn part2(commands: &[Command]) -> String {
+    let mut cpu = CPU::new(commands);
+    let mut crt = CRT::new();
+
+    loop {
+        cpu.next_tick();
+
+        let draw_idx = crt.get_current_idx() as i32;
+        let is_lit = if draw_idx >= cpu.x - 1 && draw_idx <= cpu.x + 1 {
+            true
+        } else {
+            false
+        };
+
+        if cpu.exec().is_none() {
+            break;
+        }
+
+        crt.add_pixel(is_lit);
+    }
+
+    crt.print()
+}
+
 fn main() {
     let commands = parse_file("./data/input.txt");
     let part1_res = part1(&commands);
-    println!("{:#?}", part1_res);
+    let part2_res = part2(&commands);
+    println!("part 1: {:#?}", part1_res);
+    println!("{}", "-".repeat(20));
+    println!("part 2:");
+    print!("{}", part2_res);
 }
 
 #[cfg(test)]
@@ -102,11 +202,7 @@ mod tests {
 
     #[test]
     fn next_tick_works() {
-        let commands = vec![
-            Command::Noop,
-            Command::Add(3),
-            Command::Add(-5),
-        ];
+        let commands = vec![Command::Noop, Command::Add(3), Command::Add(-5)];
         let mut cpu = CPU::new(&commands);
 
         cpu.next_tick();
@@ -152,5 +248,19 @@ mod tests {
         let commands = parse_file("./data/demo.txt");
         let res = part1(&commands);
         assert_eq!(res, 13140);
+    }
+
+    #[test]
+    fn part2_works() {
+        let commands = parse_file("./data/demo.txt");
+        let res = part2(&commands);
+        let expected = "##..##..##..##..##..##..##..##..##..##..
+###...###...###...###...###...###...###.
+####....####....####....####....####....
+#####.....#####.....#####.....#####.....
+######......######......######......####
+#######.......#######.......#######.....
+";
+        assert_eq!(res, expected);
     }
 }
