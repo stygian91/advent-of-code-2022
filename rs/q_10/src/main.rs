@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, path::Path, fmt::Write};
+use std::{fmt::Write, fs::read_to_string, path::Path};
 
 const CRT_WIDTH: usize = 40;
 const CRT_HEIGHT: usize = 6;
