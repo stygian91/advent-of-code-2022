@@ -46,10 +46,7 @@ impl Cpu {
     }
 
     pub fn exec(&mut self) -> Option<()> {
-        let cmd = self.commands.get(self.pc);
-        cmd?;
-
-        let cmd = cmd.unwrap();
+        let cmd = self.commands.get(self.pc)?;
 
         match cmd {
             Command::Noop => {
