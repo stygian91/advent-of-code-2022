@@ -8,16 +8,18 @@ const CRT_UNLIT: char = '.';
 #[derive(Debug, PartialEq, Clone)]
 enum Command {
     Noop,
-    Add(i32),
+    AddX(i32),
 }
+
+use Command::*;
 
 impl Command {
     pub fn from_str(input: &str) -> Self {
         if input == "noop" {
-            Command::Noop
+            Noop
         } else {
             let value = input.split(' ').nth(1).unwrap().parse::<i32>().unwrap();
-            Command::Add(value)
+            AddX(value)
         }
     }
 }
@@ -49,11 +51,11 @@ impl Cpu {
         let cmd = self.commands.get(self.pc)?;
 
         match cmd {
-            Command::Noop => {
+            Noop => {
                 self.pc += 1;
                 self.last_started += 1;
             }
-            Command::Add(value) => {
+            AddX(value) => {
                 if self.tick - self.last_started == 2 {
                     self.last_started = self.tick;
                     self.pc += 1;
@@ -189,7 +191,7 @@ mod tests {
 
     #[test]
     fn next_tick_works() {
-        let commands = vec![Command::Noop, Command::Add(3), Command::Add(-5)];
+        let commands = vec![Noop, AddX(3), AddX(-5)];
         let mut cpu = Cpu::new(&commands);
 
         cpu.next_tick();
@@ -225,9 +227,9 @@ mod tests {
 
     #[test]
     fn command_from_str_works() {
-        assert_eq!(Command::from_str("noop"), Command::Noop);
-        assert_eq!(Command::from_str("addx 15"), Command::Add(15));
-        assert_eq!(Command::from_str("addx -11"), Command::Add(-11));
+        assert_eq!(Command::from_str("noop"), Noop);
+        assert_eq!(Command::from_str("addx 15"), AddX(15));
+        assert_eq!(Command::from_str("addx -11"), AddX(-11));
     }
 
     #[test]
