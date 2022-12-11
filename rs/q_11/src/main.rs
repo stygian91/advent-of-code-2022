@@ -1,13 +1,11 @@
-#![allow(unused)]
-
 use std::{collections::VecDeque, fs::read_to_string, path::Path};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Monkey {
     items: VecDeque<u128>,
     operation: Operation,
     test: Test,
-    inspected: u32,
+    inspected: u128,
 }
 
 impl Monkey {
@@ -22,14 +20,15 @@ impl Monkey {
         }
     }
 
-    pub fn throw_all(&mut self, decrease_stress: bool) -> Vec<(usize, u128)> {
+    pub fn throw_all<F>(&mut self, modify: F) -> Vec<(usize, u128)>
+    where
+        F: Fn(u128) -> u128,
+    {
         let mut res = vec![];
 
         while let Some(item) = self.get_next() {
-            let mut _item = self.operation.execute(&item);
-            if decrease_stress {
-                _item = _item / 3;
-            }
+            let mut _item = self.operation.execute(item);
+            _item = modify(_item);
             res.push((self.test.execute(&_item), _item));
             self.inspected += 1;
         }
@@ -54,7 +53,7 @@ impl Monkey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Operation {
     // The left operand is always `old`
     right: Operand,
@@ -70,7 +69,7 @@ impl Operation {
             .unwrap()
             .collect::<Vec<&str>>();
 
-        let sign = parts[0].chars().nth(0).unwrap();
+        let sign = parts[0].chars().next().unwrap();
         let operator = match sign {
             '+' => Operator::Add,
             '*' => Operator::Multiply,
@@ -79,16 +78,16 @@ impl Operation {
 
         let right = match parts[1] {
             "old" => Operand::Old,
-            (val) => Operand::Literal(val.parse::<u128>().unwrap()),
+            val => Operand::Literal(val.parse::<u128>().unwrap()),
         };
 
         Self { operator, right }
     }
 
-    pub fn execute(&self, old: &u128) -> u128 {
-        let right = match &self.right {
+    pub fn execute(&self, old: u128) -> u128 {
+        let right = match self.right {
             Operand::Old => old,
-            Operand::Literal(val) => &val,
+            Operand::Literal(val) => val,
         };
 
         match self.operator {
@@ -98,19 +97,19 @@ impl Operation {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Operand {
     Old,
     Literal(u128),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Operator {
     Add,
     Multiply,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Test {
     divident: u128,
     passes: usize,
@@ -134,7 +133,7 @@ impl Test {
     }
 
     pub fn execute(&self, value: &u128) -> usize {
-        match value % &self.divident == 0 {
+        match value % self.divident == 0 {
             true => self.passes,
             false => self.fails,
         }
@@ -149,9 +148,9 @@ impl Test {
     }
 }
 
-fn round(monkeys: &mut Vec<Monkey>, decrease_stress: bool) {
+fn round<F>(monkeys: &mut Vec<Monkey>, modify: F) where F: Fn(u128) -> u128 {
     for i in 0..monkeys.len() {
-        let throws = monkeys[i].throw_all(decrease_stress);
+        let throws = monkeys[i].throw_all(&modify);
 
         for throw in throws {
             monkeys[throw.0].receive(throw.1);
@@ -160,7 +159,7 @@ fn round(monkeys: &mut Vec<Monkey>, decrease_stress: bool) {
 }
 
 fn parse_monkeys(path: &str) -> Vec<Monkey> {
-    let content = read_to_string(&Path::new(path)).unwrap();
+    let content = read_to_string(Path::new(path)).unwrap();
     let line_groups = content.split("\n\n").collect::<Vec<&str>>();
     line_groups
         .iter()
@@ -168,9 +167,13 @@ fn parse_monkeys(path: &str) -> Vec<Monkey> {
         .collect::<Vec<_>>()
 }
 
-fn part1(monkeys: &mut Vec<Monkey>) -> u32 {
-    for i in 0..20 {
-        round(monkeys, true);
+fn part1_worry(worry: u128) -> u128 {
+    worry / 3
+}
+
+fn part1(monkeys: &mut Vec<Monkey>) -> u128 {
+    for _ in 0..20 {
+        round(monkeys, part1_worry);
     }
 
     let mut inspected = monkeys
@@ -183,9 +186,11 @@ fn part1(monkeys: &mut Vec<Monkey>) -> u32 {
     inspected[0] * inspected[1]
 }
 
-fn part2(monkeys: &mut Vec<Monkey>) -> u32 {
-    for i in 0..10_000 {
-        round(monkeys, false);
+fn part2(monkeys: &mut Vec<Monkey>) -> u128 {
+    let modulo = monkeys.iter().map(|monkey| monkey.test.divident).product::<u128>();
+
+    for _ in 0..10_000 {
+        round(monkeys, |item| item % modulo);
     }
 
     let mut inspected = monkeys
@@ -201,40 +206,16 @@ fn part2(monkeys: &mut Vec<Monkey>) -> u32 {
 fn main() {
     let mut monkeys = parse_monkeys("./data/input.txt");
 
-    let part1_res = part1(&mut monkeys);
+    let part1_res = part1(&mut monkeys.clone());
     println!("part 1: {}", part1_res);
+
+    let part2_res = part2(&mut monkeys);
+    println!("part 2: {}", part2_res);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn test_items(monkeys: &Vec<Monkey>, expected: &[Vec<u128>]) {
-        let mut actual = vec![];
-
-        for monkey in monkeys {
-            actual.push(monkey.items.clone());
-        }
-
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn round_works() {
-        let mut monkeys = parse_monkeys("./data/demo.txt");
-
-        round(&mut monkeys, true);
-
-        test_items(
-            &monkeys,
-            &[
-                vec![20, 23, 27, 26],
-                vec![2080, 25, 167, 207, 401, 1046],
-                vec![],
-                vec![],
-            ],
-        );
-    }
 
     #[test]
     fn part1_works() {
@@ -245,7 +226,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn part2_works() {
         let mut monkeys = parse_monkeys("./data/demo.txt");
 
