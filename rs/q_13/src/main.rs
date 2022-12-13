@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, fs::read_to_string};
+use std::{cmp::Ordering, fs::read_to_string, time::Instant};
 
 use serde_json::{from_str, Number, Value};
 
@@ -72,8 +72,7 @@ fn compare_nums(a: &Number, b: &Number) -> Ordering {
     return a_num.cmp(&b_num);
 }
 
-fn part1(path: &str) -> usize {
-    let pairs = parse(path);
+fn part1(pairs: &Vec<Vec<Value>>) -> usize {
     let mut sum = 0;
 
     for (i, pair) in pairs.iter().enumerate() {
@@ -86,8 +85,7 @@ fn part1(path: &str) -> usize {
     sum
 }
 
-fn part2(path: &str) -> usize {
-    let pairs = parse(path);
+fn part2(pairs: &Vec<Vec<Value>>) -> usize {
     let mut sorted = vec![];
 
     for pair in pairs.iter() {
@@ -123,11 +121,26 @@ fn part2(path: &str) -> usize {
 }
 
 fn main() {
-    let part1_res = part1("./data/input.txt");
-    println!("part 1: {}", part1_res);
+    let parsing_begin = Instant::now();
+    let pairs = parse("./data/input.txt");
+    let parsing_dur = parsing_begin.elapsed();
+    println!("Parsing took: {:.2?}", parsing_dur);
 
-    let part2_res = part2("./data/input.txt");
-    println!("part 2: {}", part2_res);
+    println!("------------");
+
+    let part1_begin = Instant::now();
+    let part1_res = part1(&pairs);
+    let part1_dur = part1_begin.elapsed();
+    println!("Part 1: {}", part1_res);
+    println!("Part 1 took: {:.2?}", part1_dur);
+
+    println!("------------");
+
+    let part2_begin = Instant::now();
+    let part2_res = part2(&pairs);
+    let part2_dur = part2_begin.elapsed();
+    println!("Part 2: {}", part2_res);
+    println!("Part 2 took: {:.2?}", part2_dur);
 }
 
 #[cfg(test)]
