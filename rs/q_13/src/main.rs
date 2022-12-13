@@ -25,21 +25,21 @@ fn compare(a: &Value, b: &Value) -> Ordering {
     }
 
     let a_list = match a {
-        Value::Number(_) => vec![a.clone()],
-        Value::Array(list) => list.clone(),
+        Value::Number(_) => vec![a],
+        Value::Array(list) => list.iter().collect::<Vec<&Value>>(),
         _ => panic!("Invalid type"),
     };
 
     let b_list = match b {
-        Value::Number(_) => vec![b.clone()],
-        Value::Array(list) => list.clone(),
+        Value::Number(_) => vec![b],
+        Value::Array(list) => list.iter().collect::<Vec<&Value>>(),
         _ => panic!("Invalid type"),
     };
 
     compare_lists(&a_list, &b_list)
 }
 
-fn compare_lists(a: &Vec<Value>, b: &Vec<Value>) -> Ordering {
+fn compare_lists(a: &Vec<&Value>, b: &Vec<&Value>) -> Ordering {
     let max_len = a.len().max(b.len());
 
     for i in 0..max_len {
