@@ -149,13 +149,15 @@ mod tests {
 
     #[test]
     fn part1_works() {
-        let part1_res = part1("./data/demo.txt");
+        let pairs = parse("./data/demo.txt");
+        let part1_res = part1(&pairs);
         assert_eq!(part1_res, 13);
     }
 
     #[test]
     fn part2_works() {
-        let part2_res = part2("./data/demo.txt");
+        let pairs = parse("./data/demo.txt");
+        let part2_res = part2(&pairs);
         assert_eq!(part2_res, 140);
     }
 }
