@@ -1,25 +1,18 @@
-#![allow(unused)]
+use std::{collections::HashMap, fs::read_to_string};
 
-use std::{collections::HashSet, fs::{read_to_string, File}};
 use itertools::Itertools;
 
 type Coord = (i32, i32);
 
-const DEMO: &'static str = "498,4 -> 498,6 -> 496,6
-503,4 -> 502,4 -> 502,9 -> 494,9";
 const DEFAULT_START: Coord = (500, 0);
 
-#[derive(Debug, PartialEq)]
-struct RockLine {
-    start: Coord,
-    end: Coord,
+enum Tile {
+    Rock,
+    Sand,
 }
 
-#[derive(Debug)]
 struct Scene {
-    rocks: Vec<RockLine>,
-    sands: HashSet<Coord>,
-    start: Coord,
+    tiles: HashMap<Coord, Tile>,
     current: Coord,
     done: bool,
     max_y: i32,
@@ -27,21 +20,63 @@ struct Scene {
 
 impl Scene {
     pub fn new(input: &str) -> Self {
-        let mut rocks = vec![];
-
-        for line in input.split('\n') {
-            rocks.extend(parse_line(line));
-        }
-
-        let max_y = rocks.iter().map(|rock| rock.get_max_y()).max().unwrap();
-
-        Self {
-            rocks,
-            sands: HashSet::new(),
-            start: DEFAULT_START,
+        let mut scene = Self {
+            tiles: HashMap::new(),
             current: (500, 0),
             done: false,
-            max_y,
+            max_y: i32::MIN,
+        };
+
+        for line in input.split('\n') {
+            let rock_lines = parse_line(line);
+            for rock_line in rock_lines {
+                scene.add_rocks(&rock_line);
+            }
+        }
+
+        scene.update_max_y();
+
+        scene
+    }
+
+    pub fn get_sand_count(&self) -> usize {
+        self.tiles
+            .iter()
+            .filter(|(_, tile)| matches!(tile, Tile::Sand))
+            .count()
+    }
+
+    fn update_max_y(&mut self) {
+        let mut max = i32::MIN;
+
+        for (coords, tile) in self.tiles.iter() {
+            if let Tile::Sand = *tile {
+                continue;
+            }
+
+            if coords.1 > max {
+                max = coords.1;
+            }
+        }
+
+        self.max_y = max;
+    }
+
+    fn add_rocks(&mut self, rock_line: &(Coord, Coord)) {
+        if is_horizontal(rock_line) {
+            let minx = rock_line.0 .0.min(rock_line.1 .0);
+            let maxx = rock_line.0 .0.max(rock_line.1 .0);
+
+            for i in minx..=maxx {
+                self.tiles.insert((i, rock_line.0 .1), Tile::Rock);
+            }
+        } else {
+            let miny = rock_line.0 .1.min(rock_line.1 .1);
+            let maxy = rock_line.0 .1.max(rock_line.1 .1);
+
+            for i in miny..=maxy {
+                self.tiles.insert((rock_line.0 .0, i), Tile::Rock);
+            }
         }
     }
 
@@ -54,7 +89,7 @@ impl Scene {
                 }
             }
             None => {
-                self.sands.insert(self.current);
+                self.tiles.insert(self.current, Tile::Sand);
                 self.current = DEFAULT_START;
             }
         };
@@ -62,69 +97,29 @@ impl Scene {
 
     fn try_move(&mut self) -> Option<Coord> {
         let mut next = (self.current.0, self.current.1 + 1);
-        if self.is_free_space(&next) {
+        if !self.tiles.contains_key(&next) {
             return Some(next);
         }
 
         next = (self.current.0 - 1, self.current.1 + 1);
-        if self.is_free_space(&next) {
+        if !self.tiles.contains_key(&next) {
             return Some(next);
         }
 
         next = (self.current.0 + 1, self.current.1 + 1);
-        if self.is_free_space(&next) {
+        if !self.tiles.contains_key(&next) {
             return Some(next);
         }
 
         None
     }
-
-    fn is_free_space(&self, pos: &Coord) -> bool {
-        !self.rocks_contain(pos) && !self.sands.contains(pos)
-    }
-
-    fn rocks_contain(&self, point: &Coord) -> bool {
-        for rock in &self.rocks {
-            if rock.contains(&point) {
-                return true;
-            }
-        }
-
-        false
-    }
 }
 
-impl RockLine {
-    pub fn contains(&self, point: &Coord) -> bool {
-        if self.is_horizontal() {
-            let minx = self.start.0.min(self.end.0);
-            let maxx = self.start.0.max(self.end.0);
-            return point.1 == self.start.1 && (minx..=maxx).contains(&point.0);
-        }
-
-        let miny = self.start.1.min(self.end.1);
-        let maxy = self.start.1.max(self.end.1);
-        point.0 == self.start.0 && (miny..=maxy).contains(&point.1)
-    }
-
-    pub fn is_horizontal(&self) -> bool {
-        self.start.1 == self.end.1
-    }
-
-    pub fn is_vertical(&self) -> bool {
-        !self.is_horizontal()
-    }
-
-    pub fn get_max_y(&self) -> i32 {
-        if self.is_horizontal() {
-            return self.start.1;
-        }
-
-        self.start.1.max(self.end.1)
-    }
+fn is_horizontal(rock_line: &(Coord, Coord)) -> bool {
+    rock_line.0 .1 == rock_line.1 .1
 }
 
-fn parse_line(line: &str) -> Vec<RockLine> {
+fn parse_line(line: &str) -> Vec<(Coord, Coord)> {
     line.split(" -> ")
         .map(|coords| {
             coords
@@ -134,7 +129,6 @@ fn parse_line(line: &str) -> Vec<RockLine> {
                 .unwrap()
         })
         .tuple_windows::<(Coord, Coord)>()
-        .map(|(start, end)| RockLine { start, end })
         .collect_vec()
 }
 
@@ -145,20 +139,12 @@ fn part1(input: &str) -> usize {
         scene.tick();
     }
 
-    scene.sands.len()
+    scene.get_sand_count()
 }
+
 fn main() {
-    let content = read_to_string("./data/input.txt").unwrap();
-    // let guard = pprof::ProfilerGuardBuilder::default()
-    //     .frequency(1000)
-    //     .blocklist(&["libc", "libgcc", "pthread", "vdso"])
-    //     .build()
-    //     .unwrap();
-    let part1_res = part1(&content);
-    // if let Ok(report) = guard.report().build() {
-    //     let file = File::create("flamegraph.svg").unwrap();
-    //     report.flamegraph(file).unwrap();
-    // }
+    let input = read_to_string("./data/input.txt").unwrap();
+    let part1_res = part1(&input);
     println!("Part 1: {}", part1_res);
 }
 
@@ -166,42 +152,8 @@ fn main() {
 mod tests {
     use super::*;
 
-    #[test]
-    fn parse_line_works() {
-        let lines = DEMO.split('\n').collect_vec();
-
-        assert_eq!(
-            parse_line(lines[0]),
-            vec![
-                RockLine {
-                    start: (498, 4),
-                    end: (498, 6)
-                },
-                RockLine {
-                    start: (498, 6),
-                    end: (496, 6)
-                },
-            ]
-        );
-
-        assert_eq!(
-            parse_line(lines[1]),
-            vec![
-                RockLine {
-                    start: (503, 4),
-                    end: (502, 4)
-                },
-                RockLine {
-                    start: (502, 4),
-                    end: (502, 9)
-                },
-                RockLine {
-                    start: (502, 9),
-                    end: (494, 9),
-                },
-            ]
-        );
-    }
+    const DEMO: &'static str = "498,4 -> 498,6 -> 496,6
+503,4 -> 502,4 -> 502,9 -> 494,9";
 
     #[test]
     fn part1_works() {
