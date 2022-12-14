@@ -14,7 +14,6 @@ enum Tile {
 struct Scene {
     tiles: HashMap<Coord, Tile>,
     current: Coord,
-    done: bool,
     max_y: i32,
 }
 
@@ -23,7 +22,6 @@ impl Scene {
         let mut scene = Self {
             tiles: HashMap::new(),
             current: (500, 0),
-            done: false,
             max_y: i32::MIN,
         };
 
@@ -44,6 +42,14 @@ impl Scene {
             .iter()
             .filter(|(_, tile)| matches!(tile, Tile::Sand))
             .count()
+    }
+
+    pub fn reset_current(&mut self) {
+        self.current = DEFAULT_START;
+    }
+
+    pub fn add_sand(&mut self, coords: Coord) {
+        self.tiles.insert(coords, Tile::Sand);
     }
 
     fn update_max_y(&mut self) {
@@ -84,13 +90,11 @@ impl Scene {
         match self.try_move() {
             Some(next) => {
                 self.current = next;
-                if self.current.1 > self.max_y {
-                    self.done = true;
-                }
             }
             None => {
                 self.tiles.insert(self.current, Tile::Sand);
-                self.current = DEFAULT_START;
+                self.add_sand(self.current);
+                self.reset_current();
             }
         };
     }
@@ -134,9 +138,33 @@ fn parse_line(line: &str) -> Vec<(Coord, Coord)> {
 
 fn part1(input: &str) -> usize {
     let mut scene = Scene::new(input);
+    let mut done = false;
 
-    while !scene.done {
+    while !done {
         scene.tick();
+        if scene.current.1 > scene.max_y {
+            done = true;
+        }
+    }
+
+    scene.get_sand_count()
+}
+
+fn part2(input: &str) -> usize {
+    let mut scene = Scene::new(input);
+    let mut done = false;
+
+    while !done {
+        if scene.tiles.contains_key(&DEFAULT_START) {
+            done = true;
+        }
+
+        scene.tick();
+
+        if scene.current.1 == scene.max_y + 2 {
+            scene.add_sand((scene.current.0, scene.current.1 - 1));
+            scene.reset_current();
+        }
     }
 
     scene.get_sand_count()
@@ -146,6 +174,9 @@ fn main() {
     let input = read_to_string("./data/input.txt").unwrap();
     let part1_res = part1(&input);
     println!("Part 1: {}", part1_res);
+
+    let part2_res = part2(&input);
+    println!("Part 2: {}", part2_res);
 }
 
 #[cfg(test)]
@@ -158,5 +189,10 @@ mod tests {
     #[test]
     fn part1_works() {
         assert_eq!(part1(DEMO), 24);
+    }
+
+    #[test]
+    fn part2_works() {
+        assert_eq!(part2(DEMO), 93)
     }
 }
