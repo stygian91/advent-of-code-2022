@@ -2,9 +2,10 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
+    cmp::Ordering,
     collections::{HashMap, HashSet},
     fs::read_to_string,
-    ops::RangeInclusive, cmp::Ordering,
+    ops::RangeInclusive,
 };
 
 type Coord = (isize, isize);
@@ -74,20 +75,20 @@ fn get_row_ranges(
         })
         .collect_vec();
 
-        ranges.sort_by(|a, b| {
-            let diff = a.start() - b.start();
-            if diff == 0 {
-                return Ordering::Equal;
-            }
+    ranges.sort_by(|a, b| {
+        let diff = a.start() - b.start();
+        if diff == 0 {
+            return Ordering::Equal;
+        }
 
-            if diff > 0 {
-                return Ordering::Greater;
-            }
+        if diff > 0 {
+            return Ordering::Greater;
+        }
 
-            Ordering::Less
-        });
+        Ordering::Less
+    });
 
-        ranges
+    ranges
 }
 
 fn part1(input: &str, target_row: isize) -> usize {
@@ -105,6 +106,13 @@ fn part1(input: &str, target_row: isize) -> usize {
         .count();
 
     count as usize - beacon_count
+}
+
+fn part2(input: &str, max: isize) -> usize {
+    let (sensors, beacons) = parse_input(input);
+    let beacon = get_beacon_pos(&sensors, &beacons, max).unwrap();
+
+    beacon.0 as usize * 4_000_000 + beacon.1 as usize
 }
 
 fn range_intersects<T: PartialOrd>(first: &RangeInclusive<T>, second: &RangeInclusive<T>) -> bool {
@@ -138,10 +146,72 @@ fn merge_all_ranges(ranges: &Vec<RangeInclusive<isize>>) -> Vec<RangeInclusive<i
     res
 }
 
+fn trim_range(range: &RangeInclusive<isize>, cutoff: &RangeInclusive<isize>) -> RangeInclusive<isize> {
+    let start = cutoff.start().max(range.start());
+    let end = cutoff.end().min(range.end());
+    *start..=*end
+}
+
+fn get_beacon_pos(
+    sensors: &HashMap<Coord, Sensor>,
+    beacons: &HashSet<Coord>,
+    search_max: isize,
+) -> Option<Coord> {
+    for i in 0..search_max {
+        let beacon = row_search_beacon(sensors, beacons, i, search_max);
+        if beacon.is_some() {
+            return beacon;
+        }
+    }
+
+    None
+}
+
+fn row_search_beacon(
+    sensors: &HashMap<Coord, Sensor>,
+    beacons: &HashSet<Coord>,
+    target_row: isize,
+    search_max: isize,
+) -> Option<Coord> {
+    let ranges = get_row_ranges(&sensors, target_row);
+    let mut merged = merge_all_ranges(&ranges);
+
+    for range in merged.iter_mut() {
+        *range = trim_range(range, &(0..=search_max));
+    }
+
+    let mut iter = merged.iter().enumerate().peekable();
+
+    while let Some((i, range)) = iter.next() {
+        let start = range.start();
+        let start_coord = (*start, target_row);
+        if i == 0 && *start > 0 && !beacons.contains(&start_coord) {
+            return Some(start_coord);
+        }
+
+        let end = range.end() + 1;
+        if end > search_max || beacons.contains(&(end, target_row)) {
+            continue;
+        }
+
+        if let Some((_, next)) = iter.peek() {
+            if !next.contains(&end) {
+                return Some((end, target_row));
+            }
+        } else {
+            return Some((end, target_row));
+        }
+    }
+
+    None
+}
+
 fn main() {
     let input = read_to_string("./data/input.txt").unwrap();
-    let p1_res = part1(&input, 2000000);
-    println!("{}", p1_res);
+    let p1_res = part1(&input, 2_000_000);
+    let p2_res = part2(&input, 4_000_000);
+    println!("Part 1: {}", p1_res);
+    println!("Part 2: {}", p2_res);
 }
 
 #[cfg(test)]
@@ -186,5 +256,18 @@ mod tests {
     #[test]
     fn part1_works() {
         assert_eq!(part1(DEMO, 10), 26);
+    }
+
+    #[test]
+    fn search_row_beacon_works() {
+        let (sensors, beacons) = parse_input(DEMO);
+        assert_eq!(row_search_beacon(&sensors, &beacons, 11, 20).unwrap(), (14, 11));
+        assert!(row_search_beacon(&sensors, &beacons, 10, 20).is_none());
+        assert!(row_search_beacon(&sensors, &beacons, 9, 20).is_none());
+    }
+
+    #[test]
+    fn part2_works() {
+        assert_eq!(part2(DEMO, 20), 56000011);
     }
 }
