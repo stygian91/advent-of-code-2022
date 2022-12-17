@@ -44,7 +44,7 @@ fn manhattan_distance(a: &Coord, b: &Coord) -> u32 {
 }
 
 fn parse_input(input: &str) -> (HashMap<Coord, Sensor>, HashSet<Coord>) {
-    let iter = input.lines().map(|line| parse_line(line));
+    let iter = input.lines().map(parse_line);
     let mut sensors = HashMap::new();
     let mut beacons = HashSet::new();
     for (coord, sensor) in iter {
@@ -134,12 +134,12 @@ fn merge_all_ranges(ranges: &Vec<RangeInclusive<isize>>) -> Vec<RangeInclusive<i
 
     let mut res = vec![ranges[0].clone()];
 
-    for i in 1..ranges.len() {
+    for range in ranges.iter().skip(1) {
         let last = res.last_mut().unwrap();
-        if range_intersects(last, &ranges[i]) {
-            *last = merge_ranges(last, &ranges[i]);
+        if range_intersects(last, range) {
+            *last = merge_ranges(last, range);
         } else {
-            res.push(ranges[i].clone());
+            res.push(range.clone());
         }
     }
 
@@ -173,7 +173,7 @@ fn row_search_beacon(
     target_row: isize,
     search_max: isize,
 ) -> Option<Coord> {
-    let ranges = get_row_ranges(&sensors, target_row);
+    let ranges = get_row_ranges(sensors, target_row);
     let mut merged = merge_all_ranges(&ranges);
 
     for range in merged.iter_mut() {
