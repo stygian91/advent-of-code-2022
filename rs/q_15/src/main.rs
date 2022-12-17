@@ -5,7 +5,7 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     fs::read_to_string,
-    ops::RangeInclusive,
+    ops::RangeInclusive, time::Instant,
 };
 
 type Coord = (isize, isize);
@@ -91,9 +91,8 @@ fn get_row_ranges(
     ranges
 }
 
-fn part1(input: &str, target_row: isize) -> usize {
-    let (sensors, beacons) = parse_input(input);
-    let ranges = get_row_ranges(&sensors, target_row);
+fn part1(sensors: &HashMap<Coord, Sensor>, beacons: &HashSet<Coord>, target_row: isize) -> usize {
+    let ranges = get_row_ranges(sensors, target_row);
 
     let count: isize = merge_all_ranges(&ranges)
         .iter()
@@ -108,9 +107,8 @@ fn part1(input: &str, target_row: isize) -> usize {
     count as usize - beacon_count
 }
 
-fn part2(input: &str, max: isize) -> usize {
-    let (sensors, beacons) = parse_input(input);
-    let beacon = get_beacon_pos(&sensors, &beacons, max).unwrap();
+fn part2(sensors: &HashMap<Coord, Sensor>, beacons: &HashSet<Coord>, max: isize) -> usize {
+    let beacon = get_beacon_pos(sensors, beacons, max).unwrap();
 
     beacon.0 as usize * 4_000_000 + beacon.1 as usize
 }
@@ -146,7 +144,10 @@ fn merge_all_ranges(ranges: &Vec<RangeInclusive<isize>>) -> Vec<RangeInclusive<i
     res
 }
 
-fn trim_range(range: &RangeInclusive<isize>, cutoff: &RangeInclusive<isize>) -> RangeInclusive<isize> {
+fn trim_range(
+    range: &RangeInclusive<isize>,
+    cutoff: &RangeInclusive<isize>,
+) -> RangeInclusive<isize> {
     let start = cutoff.start().max(range.start());
     let end = cutoff.end().min(range.end());
     *start..=*end
@@ -207,11 +208,27 @@ fn row_search_beacon(
 }
 
 fn main() {
+    let timer = Instant::now();
     let input = read_to_string("./data/input.txt").unwrap();
-    let p1_res = part1(&input, 2_000_000);
-    let p2_res = part2(&input, 4_000_000);
+    let read_elapsed = timer.elapsed();
+    println!("Reading input took: {:.2?}", read_elapsed);
+
+    let timer = Instant::now();
+    let (sensors, beacons) = parse_input(&input);
+    let parse_elapsed = timer.elapsed();
+    println!("Parsing took: {:.2?}", parse_elapsed);
+
+    let timer = Instant::now();
+    let p1_res = part1(&sensors, &beacons, 2_000_000);
+    let p1_elapsed = timer.elapsed();
     println!("Part 1: {}", p1_res);
+    println!("Part 1 took: {:.2?}", p1_elapsed);
+
+    let timer = Instant::now();
+    let p2_res = part2(&sensors, &beacons, 4_000_000);
+    let p2_elapsed = timer.elapsed();
     println!("Part 2: {}", p2_res);
+    println!("Part 2 took: {:.2?}", p2_elapsed);
 }
 
 #[cfg(test)]
@@ -255,19 +272,24 @@ mod tests {
 
     #[test]
     fn part1_works() {
-        assert_eq!(part1(DEMO, 10), 26);
+        let (sensors, beacons) = parse_input(DEMO);
+        assert_eq!(part1(&sensors, &beacons, 10), 26);
     }
 
     #[test]
     fn search_row_beacon_works() {
         let (sensors, beacons) = parse_input(DEMO);
-        assert_eq!(row_search_beacon(&sensors, &beacons, 11, 20).unwrap(), (14, 11));
+        assert_eq!(
+            row_search_beacon(&sensors, &beacons, 11, 20).unwrap(),
+            (14, 11)
+        );
         assert!(row_search_beacon(&sensors, &beacons, 10, 20).is_none());
         assert!(row_search_beacon(&sensors, &beacons, 9, 20).is_none());
     }
 
     #[test]
     fn part2_works() {
-        assert_eq!(part2(DEMO, 20), 56000011);
+        let (sensors, beacons) = parse_input(DEMO);
+        assert_eq!(part2(&sensors, &beacons, 20), 56000011);
     }
 }
