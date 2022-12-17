@@ -1,10 +1,11 @@
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
-    collections::{HashMap, HashSet, BTreeSet},
+    collections::{HashMap, HashSet},
     fs::read_to_string,
+    ops::RangeInclusive, cmp::Ordering,
 };
-use itertools::Itertools;
 
 type Coord = (isize, isize);
 
@@ -41,7 +42,7 @@ fn manhattan_distance(a: &Coord, b: &Coord) -> u32 {
     ((a.0 - b.0).abs() + (a.1 - b.1).abs()) as u32
 }
 
-fn part1(input: &str, target_row: isize) -> usize {
+fn parse_input(input: &str) -> (HashMap<Coord, Sensor>, HashSet<Coord>) {
     let iter = input.lines().map(|line| parse_line(line));
     let mut sensors = HashMap::new();
     let mut beacons = HashSet::new();
@@ -50,36 +51,92 @@ fn part1(input: &str, target_row: isize) -> usize {
         sensors.insert(coord, sensor);
     }
 
-    let ranges = sensors.iter().filter(|(coords, sensor)| {
-        let diff = (coords.1 - target_row).abs();
-        (diff as u32) <= sensor.distance
-    }).map(|(coords, sensor)| {
-        let r_pos = (coords.0, target_row);
-        let md_diff = sensor.distance - manhattan_distance(coords, &r_pos);
-        let row_width = 2 * md_diff + 1;
-        let min_x = r_pos.0 - (row_width as isize / 2);
-        let max_x = r_pos.0 + (row_width as isize / 2);
-        min_x..=max_x
-    }).collect_vec();
+    (sensors, beacons)
+}
 
-    // this is lazy and wastes space
-    // we could merge the ranges as much as possible
-    // then get their individual counts and sum them
-    let mut row_points = HashSet::new();
-    for range in ranges {
-        for x in range {
-            row_points.insert(x);
+fn get_row_ranges(
+    sensors: &HashMap<Coord, Sensor>,
+    target_row: isize,
+) -> Vec<RangeInclusive<isize>> {
+    let mut ranges = sensors
+        .iter()
+        .filter(|(coords, sensor)| {
+            let diff = (coords.1 - target_row).abs();
+            (diff as u32) <= sensor.distance
+        })
+        .map(|(coords, sensor)| {
+            let r_pos = (coords.0, target_row);
+            let md_diff = sensor.distance - manhattan_distance(coords, &r_pos);
+            let row_width = 2 * md_diff + 1;
+            let min_x = r_pos.0 - (row_width as isize / 2);
+            let max_x = r_pos.0 + (row_width as isize / 2);
+            min_x..=max_x
+        })
+        .collect_vec();
+
+        ranges.sort_by(|a, b| {
+            let diff = a.start() - b.start();
+            if diff == 0 {
+                return Ordering::Equal;
+            }
+
+            if diff > 0 {
+                return Ordering::Greater;
+            }
+
+            Ordering::Less
+        });
+
+        ranges
+}
+
+fn part1(input: &str, target_row: isize) -> usize {
+    let (sensors, beacons) = parse_input(input);
+    let ranges = get_row_ranges(&sensors, target_row);
+
+    let count: isize = merge_all_ranges(&ranges)
+        .iter()
+        .map(|range| (range.start() - range.end()).abs() + 1)
+        .sum();
+
+    let beacon_count = beacons
+        .iter()
+        .filter(|beacon| beacon.1 == target_row)
+        .count();
+
+    count as usize - beacon_count
+}
+
+fn range_intersects<T: PartialOrd>(first: &RangeInclusive<T>, second: &RangeInclusive<T>) -> bool {
+    (first.start() <= second.end() && first.end() >= second.end())
+        || (first.end() >= second.start() && second.end() >= first.end())
+}
+
+fn merge_ranges<T: Ord + Copy>(
+    first: &RangeInclusive<T>,
+    second: &RangeInclusive<T>,
+) -> RangeInclusive<T> {
+    *first.start().min(second.start())..=*first.end().max(second.end())
+}
+
+fn merge_all_ranges(ranges: &Vec<RangeInclusive<isize>>) -> Vec<RangeInclusive<isize>> {
+    if ranges.len() <= 1 {
+        return ranges.clone();
+    }
+
+    let mut res = vec![ranges[0].clone()];
+
+    for i in 1..ranges.len() {
+        let last = res.last_mut().unwrap();
+        if range_intersects(last, &ranges[i]) {
+            *last = merge_ranges(last, &ranges[i]);
+        } else {
+            res.push(ranges[i].clone());
         }
     }
 
-    let beacon_count = beacons.iter().filter(|beacon| beacon.1 == target_row).count();
-
-    row_points.len() - beacon_count
+    res
 }
-
-// fn part2(input: &str, min: isize, max: isize) {
-
-// }
 
 fn main() {
     let input = read_to_string("./data/input.txt").unwrap();
@@ -105,6 +162,25 @@ mod tests {
                 }
             )
         );
+    }
+
+    #[test]
+    fn range_includes_works() {
+        assert!(range_intersects(&(1..=4), &(1..=3)));
+        assert!(range_intersects(&(1..=4), &(1..=4)));
+        assert!(range_intersects(&(2..=6), &(3..=6)));
+        assert!(range_intersects(&(2..=6), &(3..=5)));
+
+        assert!(range_intersects(&(1..=4), &(0..=1)));
+        assert!(range_intersects(&(1..=4), &(3..=5)));
+
+        assert!(!range_intersects(&(1..=4), &(5..=6)));
+        assert!(!range_intersects(&(3..=5), &(0..=2)));
+    }
+
+    #[test]
+    fn merge_ranges_works() {
+        assert_eq!(merge_ranges(&(1..=3), &(2..=5)), 1..=5);
     }
 
     #[test]
