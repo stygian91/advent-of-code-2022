@@ -1,11 +1,9 @@
-use std::{fs::read_to_string, ops::Index};
-
+use std::fs::read_to_string;
 use itertools::Itertools;
 
 #[derive(Debug, Clone)]
 struct Cube {
     pos: (usize, usize, usize),
-    pub covered: u8,
 }
 
 impl Cube {
@@ -16,7 +14,7 @@ impl Cube {
             .collect_tuple()
             .unwrap();
 
-        Self { pos, covered: 0 }
+        Self { pos }
     }
 
     pub fn is_touching(&self, other: &Self) -> bool {
@@ -39,9 +37,9 @@ fn usize_diff(a: &usize, b: &usize) -> usize {
 fn main() {
     let content = read_to_string("./data/input.txt").unwrap();
 
-    let mut cubes = content
+    let cubes = content
         .lines()
-        .map(|line| Cube::from_str(&line))
+        .map(Cube::from_str)
         .collect_vec();
 
     let combinations = cubes
@@ -51,16 +49,15 @@ fn main() {
         .combinations(2)
         .collect_vec();
 
+    let mut area = cubes.len() * 6;
+
     for combination in combinations {
         let id1 = combination[0];
         let id2 = combination[1];
         if cubes[id1].is_touching(&cubes[id2]) {
-            cubes[id1].covered += 1;
-            cubes[id2].covered += 1;
+            area -= 2;
         }
     }
 
-    let covered = cubes.iter().map(|c| c.covered as usize).sum::<usize>();
-    let area = cubes.len() * 6 - covered;
     println!("{:#?}", area);
 }
