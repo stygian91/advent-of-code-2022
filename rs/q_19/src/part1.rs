@@ -1,12 +1,11 @@
 use crate::blueprint::{run_blueprint, Blueprint};
+use rayon::prelude::*;
 
 pub fn part1(blueprints: &[Blueprint]) {
-    let mut qualities = 0u64;
-
-    for (i, blueprint) in blueprints.iter().enumerate() {
+    let qualities: u64 = blueprints.par_iter().map(|blueprint| {
         let geodes = run_blueprint(24, blueprint);
-        qualities += geodes * (i as u64 + 1);
-    }
+        geodes * blueprint.id as u64
+    }).sum();
 
     println!("Part 1: {}", qualities);
 }
