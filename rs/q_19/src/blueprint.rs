@@ -86,9 +86,7 @@ fn step_blueprint(
     blueprint: &Blueprint,
     mut node: ActionNode,
 ) {
-    let action = node.action;
-
-    if let Action::BuildGeode = action {
+    if let Action::BuildGeode = node.action {
         if node.state.earliest.is_none() {
             node.state.earliest = Some(minute);
         }
@@ -102,7 +100,7 @@ fn step_blueprint(
         }
     }
 
-    node.state.do_action(&action, blueprint);
+    node.state.do_action(&node.action, blueprint);
 
     let path_max = get_path_max(limit, minute, &node.state);
     let geodes = node.state.resources.geode;

@@ -14,7 +14,8 @@ pub enum Action {
 }
 
 pub fn get_possible_actions(blueprint: &Blueprint, resources: &Resources) -> Vec<Action> {
-    let mut res = vec![Wait];
+    let mut res = Vec::with_capacity(5);
+    res.push(Wait);
 
     if resources.ore >= blueprint.ore_robot {
         res.push(BuildOre);
