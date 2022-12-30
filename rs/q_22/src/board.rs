@@ -15,7 +15,6 @@ pub enum Orientation {
     Left,
     Top,
 }
-
 #[derive(Debug, Clone, Copy)]
 pub enum Tile {
     Open,
@@ -258,11 +257,7 @@ impl<'a> BoardIterator<'a> {
             return Some((new_pos, self.board.get(&new_pos)));
         }
 
-        self.range_iter = Self::new_range(
-            &new_pos,
-            &self.board.orientation,
-            self.range_iter.len() - (self.current - 1) + 1,
-        );
+        self.range_iter = Self::new_range(&new_pos, &self.board.orientation, self.range_iter.len());
         self.current = 0;
 
         Some((new_pos, self.board.get(&new_pos)))
