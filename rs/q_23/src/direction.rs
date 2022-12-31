@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use Direction::*;
 
-const STARTING_DIRECTIONS: [Direction; 4] = [N, S, E, W];
+pub const STARTING_DIRECTIONS: [Direction; 4] = [N, S, E, W];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
