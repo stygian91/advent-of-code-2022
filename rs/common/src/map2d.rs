@@ -1,4 +1,4 @@
-use std::collections::btree_map::Entry;
+use std::collections::btree_map::{Entry, Iter};
 use std::collections::BTreeMap;
 use std::ops::Bound::Included;
 
@@ -16,6 +16,7 @@ impl<T> BTreeMap2D<T> {
         }
     }
 
+    // TODO: make range method more generic
     pub fn range(&self, ne: &Coord) -> impl Iterator<Item = (&Coord, &T)> {
         self.elements
             .range((Included(ne), Included(&(ne.0, ne.1 + 2))))
@@ -49,6 +50,10 @@ impl<T> BTreeMap2D<T> {
 
     pub fn entry(&mut self, key: Coord) -> Entry<(isize, isize), T> {
         self.elements.entry(key)
+    }
+
+    pub fn iter(&self) -> Iter<'_, (isize, isize), T> {
+        self.elements.iter()
     }
 }
 
