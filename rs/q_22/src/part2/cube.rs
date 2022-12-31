@@ -19,7 +19,7 @@ pub struct Cube {
     pub faces: HashMap<FaceIdentity, Face>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum AxisDirection {
     XPositive,
     XNegative,
