@@ -57,7 +57,7 @@ fn filter_neighbours<'a>(
         .collect_vec()
 }
 
-fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
+fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) -> usize {
     let mut proposed = BTreeMap::new();
 
     // first phase of round:
@@ -91,15 +91,18 @@ fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
 
     // second phase of round:
     // move elves around based on their propositions
+    let mut move_count = 0;
     for (proposed_pos, propositioners) in proposed.iter() {
         if propositioners.len() != 1 {
             continue;
         }
 
+        move_count += 1;
         move_elf(&propositioners[0], proposed_pos, map);
     }
 
     rotate_proposed(proposed_dirs);
+    move_count
 }
 
 fn get_bounding_rectangle(map: &BTreeMap2D<Tile>) -> (Coord, Coord) {
@@ -178,9 +181,22 @@ fn part1(input: &str) {
     println!("Part 1: {empty}");
 }
 
+fn part2(input: &str) {
+    let mut map = parse(input);
+    let mut proposed = VecDeque::from(STARTING_DIRECTIONS);
+    for i in 1.. {
+        let move_count = round(&mut map, &mut proposed);
+        if move_count == 0 {
+            println!("Part 2: {i}");
+            break;
+        }
+    }
+}
+
 fn main() {
     let input = read_to_string("./data/input.txt").unwrap();
     part1(&input);
+    part2(&input);
 }
 
 #[cfg(test)]
