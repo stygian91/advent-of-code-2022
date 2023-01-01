@@ -31,13 +31,33 @@ fn parse(input: &str) -> BTreeMap2D<Tile> {
     map
 }
 
+fn count_elves<'a, I: Iterator<Item = &'a (&'a Coord, &'a Tile)>>(tiles: I) -> usize {
+    tiles.filter(|(_, tile)| matches!(tile, Tile::Elf)).count()
+}
+
 fn has_elves<'a, I: Iterator<Item = &'a (&'a Coord, &'a Tile)>>(tiles: I) -> bool {
-    tiles.fold(false, |acc, (_, tile)| acc || matches!(tile, Tile::Elf))
+    count_elves(tiles) > 0
 }
 
 fn move_elf(from: &Coord, to: &Coord, map: &mut BTreeMap2D<Tile>) {
     *map.entry(*from).or_insert(Tile::Empty) = Tile::Empty;
     *map.entry(*to).or_insert(Tile::Elf) = Tile::Elf;
+}
+
+fn filter_neighbours<'a>(
+    pos: &Coord,
+    dir: &Direction,
+    neighbours: &'a [(&'a (isize, isize), &'a Tile)],
+) -> Vec<&'a (&'a (isize, isize), &'a Tile)> {
+    neighbours.iter().filter(|(&c_pos, _)| {
+            match dir {
+                Direction::N => c_pos.0 == pos.0 - 1 && c_pos.1 >= pos.1 - 1 && c_pos.1 <= pos.1 + 1,
+                Direction::E => c_pos.1 == pos.1 + 1 && c_pos.0 >= pos.0 - 1 && c_pos.0 <= pos.0 + 1,
+                Direction::S => c_pos.0 == pos.0 + 1 && c_pos.1 >= pos.1 - 1 && c_pos.1 <= pos.1 + 1,
+                Direction::W => c_pos.1 == pos.1 + 1 && c_pos.0 >= pos.0 - 1 && c_pos.0 <= pos.0 + 1,
+                _ => panic!("Unexpected direction in proposed directions."),
+            }
+    }).collect_vec()
 }
 
 fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
@@ -56,16 +76,9 @@ fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
         }
 
         for dir in proposed_dirs.iter() {
-            let dir_neighbours = match dir {
-                Direction::N => [&neighbours[0], &neighbours[1], &neighbours[2]],
-                Direction::E => [&neighbours[2], &neighbours[4], &neighbours[7]],
-                Direction::S => [&neighbours[5], &neighbours[6], &neighbours[7]],
-                Direction::W => [&neighbours[0], &neighbours[3], &neighbours[5]],
-                _ => panic!("Unexpected direction in proposed directions."),
-            };
+            let dir_neighbours = filter_neighbours(pos, dir, &neighbours);
 
-            let dir_neighbours_has_elves = has_elves(dir_neighbours.into_iter());
-            if !dir_neighbours_has_elves {
+            if !has_elves(dir_neighbours.into_iter()) {
                 let proposed_pos = match dir {
                     Direction::N => (pos.0 - 1, pos.1),
                     Direction::E => (pos.0, pos.1 + 1),
@@ -93,14 +106,75 @@ fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
     rotate_proposed(proposed_dirs);
 }
 
-// TODO: write function that finds the AABB of all elves
+fn get_bounding_rectangle(map: &BTreeMap2D<Tile>) -> (Coord, Coord) {
+    let mut min_x = isize::MAX;
+    let mut min_y = isize::MAX;
+    let mut max_x = isize::MIN;
+    let mut max_y = isize::MIN;
+
+    map.iter()
+        .filter(|(_, tile)| matches!(tile, Tile::Elf))
+        .for_each(|(pos, _)| {
+            if min_x > pos.1 {
+                min_x = pos.1;
+            }
+
+            if min_y > pos.0 {
+                min_y = pos.0;
+            }
+
+            if max_x < pos.1 {
+                max_x = pos.1;
+            }
+
+            if max_y < pos.0 {
+                max_y = pos.0;
+            }
+        });
+
+    ((min_y, min_x), (max_y, max_x))
+}
+
+fn count_empty(aabb: (Coord, Coord), elves: usize) -> usize {
+    let h = (aabb.1 .0 - aabb.0 .0).abs();
+    let w = (aabb.1 .1 - aabb.0 .1).abs();
+    let total = h * w;
+    println!("w: {w} h: {h} total: {total}");
+
+    total as usize - elves
+}
+
+fn print_map(map: &BTreeMap2D<Tile>) {
+    let aabb = get_bounding_rectangle(&map);
+    let mut buff = String::new();
+    for y in aabb.0.0..=aabb.1.0 {
+        for x in aabb.0.1..=aabb.1.1 {
+            let el = map.get(&(y, x)).unwrap_or(&Tile::Empty);
+            match el {
+                Tile::Empty => buff.push('.'),
+                Tile::Elf => buff.push('#'),
+            }
+        }
+        buff.push('\n');
+    }
+
+    print!("{buff}");
+}
 
 fn part1(input: &str) {
     let mut map = parse(input);
+    let elves = map.iter().filter(|(_, tile)| matches!(tile, Tile::Elf)).count();
     let mut proposed = VecDeque::from(STARTING_DIRECTIONS);
     for _ in 0..10 {
         round(&mut map, &mut proposed);
     }
+
+    print_map(&map);
+
+    let aabb = get_bounding_rectangle(&map);
+    let empty = count_empty(aabb, elves);
+
+    println!("Part 1: {empty}");
 }
 
 fn main() {
