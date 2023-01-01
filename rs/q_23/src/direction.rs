@@ -7,13 +7,9 @@ pub const STARTING_DIRECTIONS: [Direction; 4] = [N, S, W, E];
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     N,
-    Ne,
     E,
-    Se,
     S,
-    Sw,
     W,
-    Nw,
 }
 
 pub fn rotate_proposed(proposed: &mut VecDeque<Direction>) {

@@ -1,11 +1,8 @@
-#![allow(unused)]
-
 use direction::{rotate_proposed, Direction, STARTING_DIRECTIONS};
 use itertools::Itertools;
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{BTreeMap, VecDeque},
     fs::read_to_string,
-    iter::Filter,
 };
 
 use aoc_common::{BTreeMap2D, Coord};
@@ -56,7 +53,6 @@ fn filter_neighbours<'a>(
             Direction::E => c_pos.1 == pos.1 + 1 && c_pos.0 >= pos.0 - 1 && c_pos.0 <= pos.0 + 1,
             Direction::S => c_pos.0 == pos.0 + 1 && c_pos.1 >= pos.1 - 1 && c_pos.1 <= pos.1 + 1,
             Direction::W => c_pos.1 == pos.1 - 1 && c_pos.0 >= pos.0 - 1 && c_pos.0 <= pos.0 + 1,
-            _ => panic!("Unexpected direction in proposed directions."),
         })
         .collect_vec()
 }
@@ -85,9 +81,8 @@ fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
                     Direction::E => (pos.0, pos.1 + 1),
                     Direction::S => (pos.0 + 1, pos.1),
                     Direction::W => (pos.0, pos.1 - 1),
-                    _ => panic!("Unexpected direction when adding proposed direction"),
                 };
-                let current_proposed = proposed.entry(proposed_pos).or_insert(vec![]);
+                let current_proposed: &mut Vec<(isize, isize)> = proposed.entry(proposed_pos).or_default();
                 current_proposed.push(*pos);
                 break;
             }
@@ -145,7 +140,7 @@ fn count_empty(aabb: (Coord, Coord), elves: usize) -> usize {
 }
 
 fn map_to_string(map: &BTreeMap2D<Tile>) -> String {
-    let aabb = get_bounding_rectangle(&map);
+    let aabb = get_bounding_rectangle(map);
     let mut buff = String::new();
     for y in aabb.0 .0..=aabb.1 .0 {
         for x in aabb.0 .1..=aabb.1 .1 {
@@ -161,6 +156,7 @@ fn map_to_string(map: &BTreeMap2D<Tile>) -> String {
     buff
 }
 
+#[allow(unused)]
 fn print_map(map: &BTreeMap2D<Tile>) {
     print!("{}", map_to_string(map));
 }
@@ -172,7 +168,7 @@ fn part1(input: &str) {
         .filter(|(_, tile)| matches!(tile, Tile::Elf))
         .count();
     let mut proposed = VecDeque::from(STARTING_DIRECTIONS);
-    for i in 0..10 {
+    for _ in 0..10 {
         round(&mut map, &mut proposed);
     }
 
