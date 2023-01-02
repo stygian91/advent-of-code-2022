@@ -2,18 +2,14 @@ use std::collections::VecDeque;
 
 use Direction::*;
 
-pub const STARTING_DIRECTIONS: [Direction; 4] = [N, S, E, W];
+pub const STARTING_DIRECTIONS: [Direction; 4] = [N, S, W, E];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     N,
-    Ne,
     E,
-    Se,
     S,
-    Sw,
     W,
-    Nw,
 }
 
 pub fn rotate_proposed(proposed: &mut VecDeque<Direction>) {
@@ -29,6 +25,6 @@ mod tests {
     fn rotate_works() {
         let mut proposed_directions = VecDeque::from(STARTING_DIRECTIONS);
         rotate_proposed(&mut proposed_directions);
-        assert_eq!(proposed_directions, VecDeque::from([S, E, W, N]));
+        assert_eq!(proposed_directions, VecDeque::from([S, W, E, N]));
     }
 }
