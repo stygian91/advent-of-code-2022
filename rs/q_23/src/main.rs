@@ -1,11 +1,8 @@
-#![allow(unused)]
-
 use direction::{rotate_proposed, Direction, STARTING_DIRECTIONS};
 use itertools::Itertools;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{BTreeMap, VecDeque},
     fs::read_to_string,
-    iter::Filter,
 };
 
 use aoc_common::{BTreeMap2D, Coord};
@@ -31,8 +28,12 @@ fn parse(input: &str) -> BTreeMap2D<Tile> {
     map
 }
 
+fn count_elves<'a, I: Iterator<Item = &'a (&'a Coord, &'a Tile)>>(tiles: I) -> usize {
+    tiles.filter(|(_, tile)| matches!(tile, Tile::Elf)).count()
+}
+
 fn has_elves<'a, I: Iterator<Item = &'a (&'a Coord, &'a Tile)>>(tiles: I) -> bool {
-    tiles.fold(false, |acc, (_, tile)| acc || matches!(tile, Tile::Elf))
+    count_elves(tiles) > 0
 }
 
 fn move_elf(from: &Coord, to: &Coord, map: &mut BTreeMap2D<Tile>) {
@@ -40,8 +41,24 @@ fn move_elf(from: &Coord, to: &Coord, map: &mut BTreeMap2D<Tile>) {
     *map.entry(*to).or_insert(Tile::Elf) = Tile::Elf;
 }
 
-fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
-    let mut proposed = HashMap::new();
+fn filter_neighbours<'a>(
+    pos: &Coord,
+    dir: &Direction,
+    neighbours: &'a [(&'a (isize, isize), &'a Tile)],
+) -> Vec<&'a (&'a (isize, isize), &'a Tile)> {
+    neighbours
+        .iter()
+        .filter(|(&c_pos, _)| match dir {
+            Direction::N => c_pos.0 == pos.0 - 1 && c_pos.1 >= pos.1 - 1 && c_pos.1 <= pos.1 + 1,
+            Direction::E => c_pos.1 == pos.1 + 1 && c_pos.0 >= pos.0 - 1 && c_pos.0 <= pos.0 + 1,
+            Direction::S => c_pos.0 == pos.0 + 1 && c_pos.1 >= pos.1 - 1 && c_pos.1 <= pos.1 + 1,
+            Direction::W => c_pos.1 == pos.1 - 1 && c_pos.0 >= pos.0 - 1 && c_pos.0 <= pos.0 + 1,
+        })
+        .collect_vec()
+}
+
+fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) -> usize {
+    let mut proposed = BTreeMap::new();
 
     // first phase of round:
     // gather propositions for each elf
@@ -56,24 +73,16 @@ fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
         }
 
         for dir in proposed_dirs.iter() {
-            let dir_neighbours = match dir {
-                Direction::N => [&neighbours[0], &neighbours[1], &neighbours[2]],
-                Direction::E => [&neighbours[2], &neighbours[4], &neighbours[7]],
-                Direction::S => [&neighbours[5], &neighbours[6], &neighbours[7]],
-                Direction::W => [&neighbours[0], &neighbours[3], &neighbours[5]],
-                _ => panic!("Unexpected direction in proposed directions."),
-            };
+            let dir_neighbours = filter_neighbours(pos, dir, &neighbours);
 
-            let dir_neighbours_has_elves = has_elves(dir_neighbours.into_iter());
-            if !dir_neighbours_has_elves {
+            if !has_elves(dir_neighbours.into_iter()) {
                 let proposed_pos = match dir {
                     Direction::N => (pos.0 - 1, pos.1),
                     Direction::E => (pos.0, pos.1 + 1),
                     Direction::S => (pos.0 + 1, pos.1),
                     Direction::W => (pos.0, pos.1 - 1),
-                    _ => panic!("Unexpected direction when adding proposed direction"),
                 };
-                let current_proposed = proposed.entry(proposed_pos).or_insert(vec![]);
+                let current_proposed: &mut Vec<(isize, isize)> = proposed.entry(proposed_pos).or_default();
                 current_proposed.push(*pos);
                 break;
             }
@@ -82,28 +91,176 @@ fn round(map: &mut BTreeMap2D<Tile>, proposed_dirs: &mut VecDeque<Direction>) {
 
     // second phase of round:
     // move elves around based on their propositions
+    let mut move_count = 0;
     for (proposed_pos, propositioners) in proposed.iter() {
         if propositioners.len() != 1 {
             continue;
         }
 
+        move_count += 1;
         move_elf(&propositioners[0], proposed_pos, map);
     }
 
     rotate_proposed(proposed_dirs);
+    move_count
 }
 
-// TODO: write function that finds the AABB of all elves
+fn get_bounding_rectangle(map: &BTreeMap2D<Tile>) -> (Coord, Coord) {
+    let mut min_x = isize::MAX;
+    let mut min_y = isize::MAX;
+    let mut max_x = isize::MIN;
+    let mut max_y = isize::MIN;
+
+    map.iter()
+        .filter(|(_, tile)| matches!(tile, Tile::Elf))
+        .for_each(|(pos, _)| {
+            if min_x > pos.1 {
+                min_x = pos.1;
+            }
+
+            if min_y > pos.0 {
+                min_y = pos.0;
+            }
+
+            if max_x < pos.1 {
+                max_x = pos.1;
+            }
+
+            if max_y < pos.0 {
+                max_y = pos.0;
+            }
+        });
+
+    ((min_y, min_x), (max_y, max_x))
+}
+
+fn count_empty(aabb: (Coord, Coord), elves: usize) -> usize {
+    let h = (aabb.1 .0 - aabb.0 .0).abs() + 1;
+    let w = (aabb.1 .1 - aabb.0 .1).abs() + 1;
+    let total = h * w;
+
+    total as usize - elves
+}
+
+fn map_to_string(map: &BTreeMap2D<Tile>) -> String {
+    let aabb = get_bounding_rectangle(map);
+    let mut buff = String::new();
+    for y in aabb.0 .0..=aabb.1 .0 {
+        for x in aabb.0 .1..=aabb.1 .1 {
+            let el = map.get(&(y, x)).unwrap_or(&Tile::Empty);
+            match el {
+                Tile::Empty => buff.push('.'),
+                Tile::Elf => buff.push('#'),
+            }
+        }
+        buff.push('\n');
+    }
+
+    buff
+}
+
+#[allow(unused)]
+fn print_map(map: &BTreeMap2D<Tile>) {
+    print!("{}", map_to_string(map));
+}
 
 fn part1(input: &str) {
     let mut map = parse(input);
+    let elves = map
+        .iter()
+        .filter(|(_, tile)| matches!(tile, Tile::Elf))
+        .count();
     let mut proposed = VecDeque::from(STARTING_DIRECTIONS);
     for _ in 0..10 {
         round(&mut map, &mut proposed);
     }
+
+    let aabb = get_bounding_rectangle(&map);
+    let empty = count_empty(aabb, elves);
+
+    println!("Part 1: {empty}");
+}
+
+fn part2(input: &str) {
+    let mut map = parse(input);
+    let mut proposed = VecDeque::from(STARTING_DIRECTIONS);
+    for i in 1.. {
+        let move_count = round(&mut map, &mut proposed);
+        if move_count == 0 {
+            println!("Part 2: {i}");
+            break;
+        }
+    }
 }
 
 fn main() {
-    let input = read_to_string("./data/demo.txt").unwrap();
+    let input = read_to_string("./data/input.txt").unwrap();
     part1(&input);
+    part2(&input);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn round_works() {
+        let input = "##
+#.
+..
+##";
+        let mut map = parse(input);
+        let mut proposed = VecDeque::from(STARTING_DIRECTIONS);
+        round(&mut map, &mut proposed);
+        round(&mut map, &mut proposed);
+        let expected = ".##.
+#...
+...#
+....
+.#..
+";
+
+        assert_eq!(map_to_string(&map), expected);
+    }
+
+    #[test]
+    fn filter_neighbours_works() {
+        let neighbours = vec![
+            (&(0, 0), &Tile::Elf),
+            (&(0, 1), &Tile::Empty),
+            (&(0, 2), &Tile::Empty),
+            (&(1, 0), &Tile::Empty),
+            (&(1, 2), &Tile::Empty),
+            (&(2, 0), &Tile::Empty),
+            (&(2, 1), &Tile::Empty),
+            (&(2, 2), &Tile::Elf),
+        ];
+
+        assert_eq!(
+            filter_neighbours(&(1, 1), &Direction::N, &neighbours),
+            vec![
+                &(&(0, 0), &Tile::Elf),
+                &(&(0, 1), &Tile::Empty),
+                &(&(0, 2), &Tile::Empty),
+            ]
+        );
+
+        assert_eq!(
+            filter_neighbours(&(1, 1), &Direction::E, &neighbours),
+            vec![
+                &(&(0, 2), &Tile::Empty),
+                &(&(1, 2), &Tile::Empty),
+                &(&(2, 2), &Tile::Elf),
+            ]
+        );
+
+        assert_eq!(
+            filter_neighbours(&(1, 1), &Direction::W, &neighbours),
+            vec![
+                &(&(0, 0), &Tile::Elf),
+                &(&(1, 0), &Tile::Empty),
+                &(&(2, 0), &Tile::Empty),
+            ]
+        );
+    }
 }
