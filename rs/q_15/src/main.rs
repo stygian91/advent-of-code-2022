@@ -5,13 +5,18 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     fs::read_to_string,
-    ops::RangeInclusive, time::Instant,
+    ops::RangeInclusive,
+    time::Instant,
 };
 
-type Coord = (isize, isize);
+use crate::par_part2::part2_par;
+
+mod par_part2;
+
+pub type Coord = (isize, isize);
 
 #[derive(Debug, PartialEq)]
-struct Sensor {
+pub struct Sensor {
     distance: u32,
     beacon: Coord,
 }
@@ -168,7 +173,7 @@ fn get_beacon_pos(
     None
 }
 
-fn row_search_beacon(
+pub fn row_search_beacon(
     sensors: &HashMap<Coord, Sensor>,
     beacons: &HashSet<Coord>,
     target_row: isize,
@@ -229,6 +234,12 @@ fn main() {
     let p2_elapsed = timer.elapsed();
     println!("Part 2: {}", p2_res);
     println!("Part 2 took: {:.2?}", p2_elapsed);
+
+    let timer = Instant::now();
+    let p2_res = part2_par(&sensors, &beacons, 4_000_000);
+    let p2_elapsed = timer.elapsed();
+    println!("Part 2 par: {}", p2_res);
+    println!("Part 2 par took: {:.2?}", p2_elapsed);
 }
 
 #[cfg(test)]
