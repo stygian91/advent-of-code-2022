@@ -27,9 +27,9 @@ func (this Range) contains(other Range) bool {
 	return this.begin <= other.begin && this.end >= other.end
 }
 
-// func (this Range) overlaps(other Range) bool {
-//   return this.begin
-// }
+func (this Range) overlaps(other Range) bool {
+	return (this.begin <= other.begin && this.end >= other.begin) || (this.begin <= other.end && this.end >= other.end)
+}
 
 func part1(lines []string) {
 	count := 0
@@ -47,9 +47,25 @@ func part1(lines []string) {
 	fmt.Println("Part 1:", count)
 }
 
+func part2(lines []string) {
+	count := 0
+
+	for _, line := range lines {
+		inputs := strings.Split(line, ",")
+		rangeA := New(inputs[0])
+		rangeB := New(inputs[1])
+
+		if rangeA.overlaps(rangeB) || rangeB.overlaps(rangeA) {
+			count++
+		}
+	}
+
+	fmt.Println("Part 2:", count)
+}
+
 func main() {
 	lines, _ := utils.ReadLines("./data/input.txt")
 
-  part1(lines)
+	part1(lines)
+	part2(lines)
 }
-
