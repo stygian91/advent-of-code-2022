@@ -57,7 +57,7 @@ func (this Graph[KeyType, ValueType]) Dijkstra(start KeyType, finish KeyType, ma
 
 		currentIndex = slices.Index(unvisited, current)
 		if currentIndex != -1 {
-			unvisited = slices.Delete(unvisited, currentIndex, currentIndex)
+			unvisited = slices.Delete(unvisited, currentIndex, currentIndex + 1)
 		}
 
 		if !hasNext {
